@@ -1,0 +1,22 @@
+{
+  "name": "hr-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "HR Project Frontend",
+  "type": "module",
+  "scripts": {
+    "dev": "npm --prefix job-portal run dev",
+    "build": "npm --prefix job-portal run build",
+    "preview": "npm --prefix job-portal run preview"
+  },
+  "keywords": [
+    "hr",
+    "frontend"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
