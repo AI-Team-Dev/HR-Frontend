@@ -33,6 +33,10 @@ export async function apiRequest(
   }
 
   const url = joinUrl(BASE_URL, path);
+  if (method === 'POST' && path === '/api/jobs') {
+    console.log('API Request URL:', url);
+    console.log('BASE_URL configured:', BASE_URL || 'NOT SET - using relative path');
+  }
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
   const finalHeaders = new Headers(headers);
