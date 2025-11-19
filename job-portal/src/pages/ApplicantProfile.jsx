@@ -21,6 +21,7 @@ export default function ApplicantProfile() {
 		portfolioUrl: applicantProfile.portfolioUrl || '',
 		currentLocation: applicantProfile.currentLocation || '',
 		preferredLocation: applicantProfile.preferredLocation || '',
+		resumeFile: null, // Store the actual file object
 		resumeFileName: applicantProfile.resumeFileName || '',
 		education: applicantProfile.education.length ? applicantProfile.education : [{ degree: '', institution: '', cgpa: '', startMonth: '', endMonth: '' }],
 		certifications: applicantProfile.certifications && applicantProfile.certifications.length ? applicantProfile.certifications : [{ name: '', issuer: '', endMonth: '' }],
@@ -36,7 +37,7 @@ export default function ApplicantProfile() {
 		if (!f.phone?.trim()) e.phone = 'Phone is required'
 		if (!f.currentLocation?.trim()) e.currentLocation = 'Current location is required'
 		if (!f.preferredLocation?.trim()) e.preferredLocation = 'Preferred location is required'
-		if (!f.resumeFileName) e.resumeFileName = 'Resume is required'
+		if (!f.resumeFile && !f.resumeFileName) e.resumeFileName = 'Resume is required'
 		const hasEducation = Array.isArray(f.education) && f.education.some(ed => ed.degree?.trim() && ed.institution?.trim())
 		if (!hasEducation) e.education = 'At least one education entry with Degree and Institution is required'
 		if (!f.experienceLevel) e.experienceLevel = 'Select fresher or experienced'
@@ -75,6 +76,8 @@ export default function ApplicantProfile() {
 
 	const onSave = (e) => {
 		e.preventDefault()
+		console.log('DEBUG: onSave - form.resumeFile:', form.resumeFile)
+		console.log('DEBUG: onSave - form keys:', Object.keys(form))
 		saveApplicantProfile(form)
 		setSaved('Profile saved')
 		setTimeout(() => setSaved(''), 1200)
@@ -149,9 +152,19 @@ export default function ApplicantProfile() {
 									type="file"
 									accept="application/pdf"
 									className={`mt-1 w-full text-sm file:bg-zinc-700 file:text-gray-100 file:px-3 file:py-2 file:rounded-md ${errors.resumeFileName ? 'border border-red-500 rounded-md' : ''}`}
-									onChange={(e) => { updateField('resumeFileName', e.target.files?.[0]?.name || ''); if (errors.resumeFileName) setErrors((er)=>({ ...er, resumeFileName: undefined })) }}
+									onChange={(e) => {
+										const file = e.target.files?.[0]
+										if (file) {
+											updateField('resumeFile', file)
+											updateField('resumeFileName', file.name)
+										} else {
+											updateField('resumeFile', null)
+											updateField('resumeFileName', '')
+										}
+										if (errors.resumeFileName) setErrors((er)=>({ ...er, resumeFileName: undefined }))
+									}}
 								/>
-								{form.resumeFileName && <div className="mt-1 text-xs text-zinc-400">Uploaded: {form.resumeFileName}</div>}
+								{(form.resumeFileName || form.resumeFile) && <div className="mt-1 text-xs text-zinc-400">Selected: {form.resumeFileName || form.resumeFile?.name || 'resume.pdf'}</div>}
 								{errors.resumeFileName && <div className="mt-1 text-xs text-red-400">{errors.resumeFileName}</div>}
 							</div>
 
@@ -327,7 +340,7 @@ export default function ApplicantProfile() {
 											<div className="grid sm:grid-cols-5 gap-3">
 												<input placeholder="Degree" className="bg-transparent border-0 border-b border-zinc-700 py-2.5 text-gray-100 focus:border-white" value={ed.degree || ''} onChange={(e) => updateListItem('education', i, 'degree', e.target.value)} />
 												<input placeholder="Institution" className="bg-transparent border-0 border-b border-zinc-700 py-2.5 text-gray-100 focus:border-white" value={ed.institution || ''} onChange={(e) => updateListItem('education', i, 'institution', e.target.value)} />
-												<input placeholder="CGPA" className="bg-transparent border-0 border-b border-zinc-700 py-2.5 text-gray-100 focus:border-white" value={ed.cgpa || ''} onChange={(e) => updateListItem('education', i, 'cgpa', e.target.value)} />
+												<input placeholder="CGPA/Percentage" className="bg-transparent border-0 border-b border-zinc-700 py-2.5 text-gray-100 focus:border-white" value={ed.cgpa || ''} onChange={(e) => updateListItem('education', i, 'cgpa', e.target.value)} />
 												<MonthYearPicker placeholder="Start" value={ed.startMonth || ''} onChange={(v) => updateListItem('education', i, 'startMonth', v)} />
 												<MonthYearPicker placeholder="End" value={ed.endMonth || ''} onChange={(v) => updateListItem('education', i, 'endMonth', v)} />
 											</div>
@@ -375,7 +388,11 @@ export default function ApplicantProfile() {
 												<input placeholder="Role" className="bg-transparent border-0 border-b border-zinc-700 py-2.5 text-gray-100 focus:border-white" value={ex.role || ''} onChange={(e) => updateListItem('experiences', i, 'role', e.target.value)} />
 												<MonthYearPicker placeholder="Start" value={ex.startMonth || ''} onChange={(v) => updateListItem('experiences', i, 'startMonth', v)} />
 												{!ex.isCurrent ? (
-													<MonthYearPicker placeholder="End" value={ex.endMonth || ''} onChange={(v) => updateListItem('experiences', i, 'endMonth', v)} />
+													<MonthYearPicker placeholder="End" value={ex.endMonth || ''} onChange={(v) => {
+														updateListItem('experiences', i, 'endMonth', v)
+														// If end date is selected, clear isCurrent
+														if (v) updateListItem('experiences', i, 'isCurrent', false)
+													}} />
 												) : (
 													<div className="flex items-center text-zinc-300 border-b border-zinc-700">
 														<span className="py-2.5">Present</span>
@@ -389,6 +406,7 @@ export default function ApplicantProfile() {
 														onChange={(e) => {
 															const val = e.target.checked
 															updateListItem('experiences', i, 'isCurrent', val)
+															// If present is checked, clear endMonth
 															if (val) updateListItem('experiences', i, 'endMonth', '')
 														}}
 													/>

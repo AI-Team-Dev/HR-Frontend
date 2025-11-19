@@ -10,7 +10,6 @@ const STORAGE_KEYS = {
   applicantAuth: 'applicantAuthState',
   applicantProfile: 'applicantProfileState',
   applicantApplications: 'applicantApplicationsState',
-  applicantSavedJobs: 'applicantSavedJobsState',
   jobs: 'jobsState',
   user: 'authUser',
 }
@@ -77,7 +76,6 @@ export function AppProvider({ children }) {
   const [authError, setAuthError] = useState('')
   const [applicantProfile, setApplicantProfile] = useState(() => readJson(STORAGE_KEYS.applicantProfile, defaultApplicantProfile))
   const [applicantApplications, setApplicantApplications] = useState(() => readJson(STORAGE_KEYS.applicantApplications, {})) // jobId -> true
-  const [applicantSavedJobs, setApplicantSavedJobs] = useState(() => readJson(STORAGE_KEYS.applicantSavedJobs, {})) // jobId -> true
 
   useEffect(() => {
     // Wire global 401 -> logout handling
@@ -121,11 +119,6 @@ export function AppProvider({ children }) {
     writeJson(STORAGE_KEYS.applicantApplications, applicantApplications)
   }, [applicantApplications])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    writeJson(STORAGE_KEYS.applicantSavedJobs, applicantSavedJobs)
-  }, [applicantSavedJobs])
-
   // Do not persist jobs; source of truth is backend
 
   // Persist user only (token is kept in-memory for security)
@@ -153,10 +146,6 @@ export function AppProvider({ children }) {
       })
       setApplicantApplications((prev) => {
         const stored = readJson(STORAGE_KEYS.applicantApplications, {})
-        return JSON.stringify(prev) === JSON.stringify(stored) ? prev : stored
-      })
-      setApplicantSavedJobs((prev) => {
-        const stored = readJson(STORAGE_KEYS.applicantSavedJobs, {})
         return JSON.stringify(prev) === JSON.stringify(stored) ? prev : stored
       })
       // Do not hydrate token from storage
@@ -206,10 +195,7 @@ export function AppProvider({ children }) {
   const fetchApplicantData = async () => {
     if (!applicantAuth.isLoggedIn || !token) return
     try {
-      const [applications, savedJobs] = await Promise.all([
-        apiRequest('/api/applications', { method: 'GET', token }).catch(() => []),
-        apiRequest('/api/applications/saved', { method: 'GET', token }).catch(() => [])
-      ])
+      const applications = await apiRequest('/api/applications', { method: 'GET', token }).catch(() => [])
       
       // Convert applications array to map
       const applicationsMap = {}
@@ -226,20 +212,6 @@ export function AppProvider({ children }) {
       }
       setApplicantApplications(applicationsMap)
       writeJson(STORAGE_KEYS.applicantApplications, applicationsMap)
-
-      // Convert saved jobs array to map
-      const savedJobsMap = {}
-      if (Array.isArray(savedJobs)) {
-        savedJobs.forEach(job => {
-          const jobId = job.id
-          if (jobId) {
-            savedJobsMap[jobId] = new Date(job.savedAt).getTime() || Date.now()
-            savedJobsMap[String(jobId)] = new Date(job.savedAt).getTime() || Date.now()
-          }
-        })
-      }
-      setApplicantSavedJobs(savedJobsMap)
-      writeJson(STORAGE_KEYS.applicantSavedJobs, savedJobsMap)
     } catch (err) {
       console.error('Fetch applicant data error:', err)
     }
@@ -330,12 +302,50 @@ export function AppProvider({ children }) {
       return { ok: true }
     }
     try {
+      // Check if there's a resume file to upload
+      const resumeFile = profile.resumeFile
+      const hasFile = resumeFile && resumeFile instanceof File
+      
+      console.log('DEBUG: saveApplicantProfile - resumeFile:', resumeFile)
+      console.log('DEBUG: saveApplicantProfile - hasFile:', hasFile)
+      console.log('DEBUG: saveApplicantProfile - profile keys:', Object.keys(profile))
+      
+      let body
+      if (hasFile) {
+        console.log('DEBUG: Using FormData for file upload')
+        // Use FormData for file upload
+        const formData = new FormData()
+        formData.append('resume', resumeFile)
+        console.log('DEBUG: Added resume file to FormData, size:', resumeFile.size)
+        // Add other fields as JSON strings if they're arrays/objects, or as regular form fields
+        Object.keys(profile).forEach(key => {
+          if (key === 'resumeFile') return // Skip the file object itself
+          const value = profile[key]
+          if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
+            formData.append(key, JSON.stringify(value))
+          } else if (value !== null && value !== undefined) {
+            formData.append(key, value)
+          }
+        })
+        body = formData
+        console.log('DEBUG: FormData created with keys:', Array.from(formData.keys()))
+      } else {
+        console.log('DEBUG: Using JSON (no file)')
+        // Use JSON for regular updates (without file)
+        body = { ...profile }
+        delete body.resumeFile // Remove file object from JSON
+      }
+      
       await apiRequest('/api/candidate/profile', {
         method: 'POST',
-        body: profile,
+        body: body,
         token
       })
       const next = { ...applicantProfile, ...profile }
+      // Don't store file object in localStorage
+      if (next.resumeFile) {
+        delete next.resumeFile
+      }
       setApplicantProfile(next)
       writeJson(STORAGE_KEYS.applicantProfile, next)
       return { ok: true }
@@ -343,6 +353,9 @@ export function AppProvider({ children }) {
       console.error('Save profile error:', err)
       // Fallback to local storage
       const next = { ...applicantProfile, ...profile }
+      if (next.resumeFile) {
+        delete next.resumeFile
+      }
       setApplicantProfile(next)
       writeJson(STORAGE_KEYS.applicantProfile, next)
       return { ok: true }
@@ -381,7 +394,7 @@ export function AppProvider({ children }) {
     try {
       await apiRequest('/api/applications', {
         method: 'POST',
-        body: { jobId: parseInt(jobId) },
+        body: { jobId },
         token
       })
       setApplicantApplications((prev) => {
@@ -390,14 +403,6 @@ export function AppProvider({ children }) {
         next[jobId] = true
         next[String(jobId)] = true
         writeJson(STORAGE_KEYS.applicantApplications, next)
-        return next
-      })
-      // Remove from saved when applied
-      setApplicantSavedJobs((prev) => {
-        if (!prev[jobId]) return prev
-        const next = { ...prev }
-        delete next[jobId]
-        writeJson(STORAGE_KEYS.applicantSavedJobs, next)
         return next
       })
       // Refresh applications from backend to ensure sync
@@ -409,48 +414,6 @@ export function AppProvider({ children }) {
     }
   }
 
-  const toggleSaveJob = async (jobId) => {
-    if (!applicantAuth.isLoggedIn) return { ok: false, reason: 'not_logged_in' }
-    try {
-      const res = await apiRequest(`/api/applications/save/${jobId}`, {
-        method: 'POST',
-        token
-      })
-      const isSaved = res.saved
-      setApplicantSavedJobs((prev) => {
-        const next = { ...prev }
-        if (isSaved) {
-          // Store as both number and string for compatibility
-          next[jobId] = Date.now()
-          next[String(jobId)] = Date.now()
-        } else {
-          delete next[jobId]
-          delete next[String(jobId)]
-        }
-        writeJson(STORAGE_KEYS.applicantSavedJobs, next)
-        return next
-      })
-      // Refresh saved jobs from backend to ensure sync
-      setTimeout(() => fetchApplicantData(), 500)
-      return { ok: true }
-    } catch (err) {
-      console.error('Toggle save job error:', err)
-      // Fallback to local storage
-      setApplicantSavedJobs((prev) => {
-        const next = { ...prev }
-        if (next[jobId] || next[String(jobId)]) {
-          delete next[jobId]
-          delete next[String(jobId)]
-        } else {
-          next[jobId] = Date.now()
-          next[String(jobId)] = Date.now()
-        }
-        writeJson(STORAGE_KEYS.applicantSavedJobs, next)
-        return next
-      })
-      return { ok: true }
-    }
-  }
 
   const logout = () => {
     setAuth(defaultAuth)
@@ -519,10 +482,42 @@ export function AppProvider({ children }) {
   // Admin: add a job (best-effort). If backend supports it, create and refresh list.
   const addJob = async (job) => {
     try {
-      await apiRequest('/api/jobs', { method: 'POST', body: job, token })
+      console.log('addJob called with:', job)
+      console.log('Token available:', !!token)
+      console.log('Token value:', token ? token.substring(0, 20) + '...' : 'none')
+      console.log('BASE_URL:', import.meta.env?.VITE_API_URL || 'not set')
+      console.log('Making API request to /api/jobs')
+      
+      if (!token) {
+        console.error('No token available - user may not be logged in')
+        return { success: false, error: 'You must be logged in to create a job. Please log in and try again.' }
+      }
+      
+      const result = await apiRequest('/api/jobs', { method: 'POST', body: job, token })
+      console.log('API request successful:', result)
       await fetchJobs()
+      return { success: true, data: result }
     } catch (err) {
       console.error('Add job error:', err)
+      console.error('Error details:', {
+        message: err?.message,
+        status: err?.status,
+        data: err?.data,
+        cause: err?.cause
+      })
+      
+      let errorMessage = 'Failed to create job'
+      if (err?.status === 401 || err?.status === 403) {
+        errorMessage = 'Authentication failed. Please log in again.'
+      } else if (err?.status === 400) {
+        errorMessage = err?.data?.error || err?.message || 'Invalid job data. Please check all fields.'
+      } else if (err?.message === 'Network error' || err?.cause) {
+        errorMessage = 'Cannot connect to server. Please check if the backend is running.'
+      } else {
+        errorMessage = err?.data?.error || err?.message || 'Failed to create job. Please try again.'
+      }
+      
+      return { success: false, error: errorMessage }
     }
   }
 
@@ -582,19 +577,17 @@ export function AppProvider({ children }) {
     applicantAuth,
     applicantProfile,
     applicantApplications,
-    applicantSavedJobs,
     loginApplicant,
     signupApplicant,
     signupHR,
     saveApplicantProfile,
     markApplicantProfileCompleted,
     applyToJobAsApplicant,
-    toggleSaveJob,
     getToken,
     logout,
     user,
     fetchApplicantData,
-  }), [jobs, jobsLoading, jobsError, auth, authLoading, authError, applicantAuth, applicantProfile, applicantApplications, applicantSavedJobs, user])
+  }), [jobs, jobsLoading, jobsError, auth, authLoading, authError, applicantAuth, applicantProfile, applicantApplications, user])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

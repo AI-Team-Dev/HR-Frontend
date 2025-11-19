@@ -5,7 +5,7 @@ import FilterBar from '../components/FilterBar.jsx'
 import JobCard from '../components/JobCard.jsx'
 
 export default function Jobs() {
-  const { jobs, applicantAuth, applicantProfile, jobsError, jobsLoading, fetchJobs, applicantSavedJobs, applicantApplications, toggleSaveJob } = useApp()
+  const { jobs, applicantAuth, applicantProfile, jobsError, jobsLoading, fetchJobs, applicantApplications } = useApp()
   const location = useLocation()
   const navigate = useNavigate()
   const params = new URLSearchParams(location.search)
@@ -72,7 +72,7 @@ export default function Jobs() {
                 key={job.id}
                 job={job}
                 isApplied={!!applicantApplications[job.id] || !!applicantApplications[String(job.id)]}
-                isSaved={!!applicantSavedJobs[job.id] || !!applicantSavedJobs[String(job.id)]}
+                isSaved={false}
                 onApply={() => {
                   if (!applicantAuth.isLoggedIn) {
                     const qs = new URLSearchParams({ redirect: window.location.pathname + window.location.search, applyFor: job.id }).toString()
@@ -83,14 +83,7 @@ export default function Jobs() {
                   const qs = new URLSearchParams({ redirect: window.location.pathname + window.location.search, applyFor: job.id }).toString()
                   navigate(`/profile/applicant?${qs}`)
                 }}
-                onToggleSave={() => {
-                  if (!applicantAuth.isLoggedIn) {
-                    const qs = new URLSearchParams({ redirect: window.location.pathname + window.location.search }).toString()
-                    navigate(`/login/applicant?${qs}`)
-                    return
-                  }
-                  toggleSaveJob(job.id)
-                }}
+                onToggleSave={() => {}}
               />
             ))
           )}

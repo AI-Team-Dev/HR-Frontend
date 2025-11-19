@@ -22,6 +22,8 @@ export default function Dashboard() {
   const [experienceTo, setExperienceTo] = useState('')
   const [description, setDescription] = useState('')
   const [success, setSuccess] = useState('')
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
   // Edit state
   const [editingJobId, setEditingJobId] = useState(null)
@@ -32,18 +34,66 @@ export default function Dashboard() {
   const [editExperienceTo, setEditExperienceTo] = useState('')
   const [editDescription, setEditDescription] = useState('')
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault()
-    addJob({ title, company, location, salary, experienceFrom, experienceTo, description })
-    setTitle('')
-    setCompany('')
-    setLocation('')
-    setSalary('')
-    setExperienceFrom('')
-    setExperienceTo('')
-    setDescription('')
-    setSuccess('Job posted! It now appears on the Jobs page.')
-    setTimeout(() => setSuccess(''), 2500)
+    console.log('Form submitted', { title, company, location, salary, experienceFrom, experienceTo, description })
+    
+    setError('')
+    setSuccess('')
+    setIsSubmitting(true)
+    
+    try {
+      // Validate required fields with specific messages
+      const missingFields = []
+      if (!title.trim()) missingFields.push('Job Title')
+      if (!company.trim()) missingFields.push('Company')
+      if (!location.trim()) missingFields.push('Location')
+      if (!description.trim()) missingFields.push('Description')
+      
+      if (missingFields.length > 0) {
+        setError(`Please fill in: ${missingFields.join(', ')}`)
+        setIsSubmitting(false)
+        return
+      }
+      
+      // Prepare job data - convert empty strings to null for optional fields
+      const jobData = {
+        title: title.trim(),
+        company: company.trim(),
+        location: location.trim(),
+        description: description.trim(),
+        salary: salary.trim() || null,
+        experienceFrom: experienceFrom && experienceFrom.trim() ? parseInt(experienceFrom) : null,
+        experienceTo: experienceTo && experienceTo.trim() ? parseInt(experienceTo) : null
+      }
+      
+      console.log('Calling addJob with data:', jobData)
+      const result = await addJob(jobData)
+      console.log('addJob result:', result)
+      
+      if (result.success) {
+        setTitle('')
+        setCompany('')
+        setLocation('')
+        setSalary('')
+        setExperienceFrom('')
+        setExperienceTo('')
+        setDescription('')
+        setSuccess('Job posted! It now appears on the Jobs page.')
+        setTimeout(() => setSuccess(''), 2500)
+      } else {
+        const errorMsg = result.error || 'Failed to create job. Please try again.'
+        console.error('Job creation failed:', errorMsg)
+        setError(errorMsg)
+        setTimeout(() => setError(''), 5000)
+      }
+    } catch (err) {
+      console.error('onSubmit error:', err)
+      setError(err?.message || 'An unexpected error occurred. Please check the console for details.')
+      setTimeout(() => setError(''), 5000)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleEditClick = (job) => {
@@ -91,6 +141,7 @@ export default function Dashboard() {
 
         <form onSubmit={onSubmit} className="mt-6 bg-zinc-900 p-6 rounded-xl shadow-sm ring-1 ring-zinc-800 space-y-4">
           {success && <div className="text-green-400 text-sm">{success}</div>}
+          {error && <div className="text-red-400 text-sm">{error}</div>}
 
           <div>
             <label className="block text-sm font-medium text-zinc-300">Job Title</label>
@@ -171,8 +222,12 @@ export default function Dashboard() {
           </div>
 
           <div className="pt-2">
-            <button type="submit" className="bg-white hover:bg-gray-100 text-black font-medium px-5 py-2.5 rounded-lg transition">
-              Post Job
+            <button 
+              type="submit" 
+              disabled={isSubmitting}
+              className={`${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'} bg-white text-black font-medium px-5 py-2.5 rounded-lg transition`}
+            >
+              {isSubmitting ? 'Posting...' : 'Post Job'}
             </button>
           </div>
         </form>
