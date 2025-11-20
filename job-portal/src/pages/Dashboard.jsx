@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 
 // Helper function to format date for display
@@ -13,9 +13,9 @@ const formatDisplayDate = (dateString) => {
 }
 
 export default function Dashboard() {
-  const { jobs, addJob, setJobEnabled, updateJob } = useApp()
+  const { jobs, addJob, setJobEnabled, updateJob, user } = useApp()
   const [title, setTitle] = useState('')
-  const [company, setCompany] = useState('')
+  const [company, setCompany] = useState(user?.company || '')
   const [location, setLocation] = useState('')
   const [salary, setSalary] = useState('')
   const [experienceFrom, setExperienceFrom] = useState('')
@@ -32,11 +32,19 @@ export default function Dashboard() {
   const [editExperienceTo, setEditExperienceTo] = useState('')
   const [editDescription, setEditDescription] = useState('')
 
+  // Update company field when user data loads
+  useEffect(() => {
+    if (user?.company && !company) {
+      setCompany(user.company)
+    }
+  }, [user])
+
   const onSubmit = (e) => {
     e.preventDefault()
     addJob({ title, company, location, salary, experienceFrom, experienceTo, description })
     setTitle('')
-    setCompany('')
+    // Keep company field populated with admin's company after submission
+    setCompany(user?.company || '')
     setLocation('')
     setSalary('')
     setExperienceFrom('')
