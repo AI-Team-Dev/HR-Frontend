@@ -38,6 +38,8 @@ export default function ApplicantProfile() {
 		if (!f.currentLocation?.trim()) e.currentLocation = 'Current location is required'
 		if (!f.preferredLocation?.trim()) e.preferredLocation = 'Preferred location is required'
 		if (!f.resumeFileName) e.resumeFileName = 'Resume is required'
+		
+		// Enhanced education validation
 		const hasEducation = Array.isArray(f.education) && f.education.some(ed => ed.degree?.trim() && ed.institution?.trim())
 		if (!hasEducation) {
 			e.education = 'At least one education entry with Degree and Institution is required'
