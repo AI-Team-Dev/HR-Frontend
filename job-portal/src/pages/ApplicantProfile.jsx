@@ -37,8 +37,36 @@ export default function ApplicantProfile() {
 		if (!f.currentLocation?.trim()) e.currentLocation = 'Current location is required'
 		if (!f.preferredLocation?.trim()) e.preferredLocation = 'Preferred location is required'
 		if (!f.resumeFileName) e.resumeFileName = 'Resume is required'
+		
+		// Enhanced education validation
 		const hasEducation = Array.isArray(f.education) && f.education.some(ed => ed.degree?.trim() && ed.institution?.trim())
-		if (!hasEducation) e.education = 'At least one education entry with Degree and Institution is required'
+		if (!hasEducation) {
+			e.education = 'At least one education entry with Degree and Institution is required'
+		} else {
+			// Check for 10th standard
+			const has10th = f.education.some(ed => 
+				ed.degree?.toLowerCase().includes('10') || 
+				ed.degree?.toLowerCase().includes('tenth') || 
+				ed.degree?.toLowerCase().includes('ssc') ||
+				ed.degree?.toLowerCase().includes('secondary')
+			)
+			// Check for 12th/Diploma
+			const has12thOrDiploma = f.education.some(ed => 
+				ed.degree?.toLowerCase().includes('12') || 
+				ed.degree?.toLowerCase().includes('twelfth') || 
+				ed.degree?.toLowerCase().includes('hsc') ||
+				ed.degree?.toLowerCase().includes('senior secondary') ||
+				ed.degree?.toLowerCase().includes('diploma') ||
+				ed.degree?.toLowerCase().includes('intermediate')
+			)
+			
+			if (!has10th) {
+				e.education = 'Please add your 10th standard education details'
+			} else if (!has12thOrDiploma) {
+				e.education = 'Please add your 12th standard or Diploma education details'
+			}
+		}
+		
 		if (!f.experienceLevel) e.experienceLevel = 'Select fresher or experienced'
 		if (f.experienceLevel === 'experienced') {
 			if (!f.servingNotice) e.servingNotice = 'Please select an option'
@@ -324,6 +352,7 @@ export default function ApplicantProfile() {
 									<label className="block text-sm font-medium text-zinc-300">Education <span className="text-red-400">*</span></label>
 									<button type="button" className="text-sm text-white bg-zinc-800 hover:bg-zinc-700 rounded-md px-3 py-1" onClick={() => { addListItem('education'); if (errors.education) setErrors((er)=>({ ...er, education: undefined })) }}>Add</button>
 								</div>
+								<p className="mt-1 text-xs text-zinc-400">Please include all your education starting from 10th standard, 12th/Diploma, and higher degrees</p>
 								{errors.education && <div className="mt-2 text-xs text-red-400">{errors.education}</div>}
 								<div className="mt-3 space-y-4">
 									{form.education.map((ed, i) => (
