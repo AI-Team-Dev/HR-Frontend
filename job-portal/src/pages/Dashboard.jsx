@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 
 // Helper function to format date for display
@@ -13,9 +13,9 @@ const formatDisplayDate = (dateString) => {
 }
 
 export default function Dashboard() {
-  const { jobs, addJob, setJobEnabled, updateJob } = useApp()
+  const { jobs, addJob, setJobEnabled, updateJob, user } = useApp()
   const [title, setTitle] = useState('')
-  const [company, setCompany] = useState('')
+  const [company, setCompany] = useState(user?.company || '')
   const [location, setLocation] = useState('')
   const [salary, setSalary] = useState('')
   const [experienceFrom, setExperienceFrom] = useState('')
@@ -34,66 +34,33 @@ export default function Dashboard() {
   const [editExperienceTo, setEditExperienceTo] = useState('')
   const [editDescription, setEditDescription] = useState('')
 
+  // Update company field when user data loads
+  useEffect(() => {
+    if (user?.company && !company) {
+      setCompany(user.company)
+    }
+  }, [user])
+
+  // Update company field when user data loads
+  useEffect(() => {
+    if (user?.company && !company) {
+      setCompany(user.company)
+    }
+  }, [user])
+
   const onSubmit = async (e) => {
     e.preventDefault()
-    console.log('Form submitted', { title, company, location, salary, experienceFrom, experienceTo, description })
-    
-    setError('')
-    setSuccess('')
-    setIsSubmitting(true)
-    
-    try {
-      // Validate required fields with specific messages
-      const missingFields = []
-      if (!title.trim()) missingFields.push('Job Title')
-      if (!company.trim()) missingFields.push('Company')
-      if (!location.trim()) missingFields.push('Location')
-      if (!description.trim()) missingFields.push('Description')
-      
-      if (missingFields.length > 0) {
-        setError(`Please fill in: ${missingFields.join(', ')}`)
-        setIsSubmitting(false)
-        return
-      }
-      
-      // Prepare job data - convert empty strings to null for optional fields
-      const jobData = {
-        title: title.trim(),
-        company: company.trim(),
-        location: location.trim(),
-        description: description.trim(),
-        salary: salary.trim() || null,
-        experienceFrom: experienceFrom && experienceFrom.trim() ? parseInt(experienceFrom) : null,
-        experienceTo: experienceTo && experienceTo.trim() ? parseInt(experienceTo) : null
-      }
-      
-      console.log('Calling addJob with data:', jobData)
-      const result = await addJob(jobData)
-      console.log('addJob result:', result)
-      
-      if (result.success) {
-        setTitle('')
-        setCompany('')
-        setLocation('')
-        setSalary('')
-        setExperienceFrom('')
-        setExperienceTo('')
-        setDescription('')
-        setSuccess('Job posted! It now appears on the Jobs page.')
-        setTimeout(() => setSuccess(''), 2500)
-      } else {
-        const errorMsg = result.error || 'Failed to create job. Please try again.'
-        console.error('Job creation failed:', errorMsg)
-        setError(errorMsg)
-        setTimeout(() => setError(''), 5000)
-      }
-    } catch (err) {
-      console.error('onSubmit error:', err)
-      setError(err?.message || 'An unexpected error occurred. Please check the console for details.')
-      setTimeout(() => setError(''), 5000)
-    } finally {
-      setIsSubmitting(false)
-    }
+    addJob({ title, company, location, salary, experienceFrom, experienceTo, description })
+    setTitle('')
+    // Keep company field populated with admin's company after submission
+    setCompany(user?.company || '')
+    setLocation('')
+    setSalary('')
+    setExperienceFrom('')
+    setExperienceTo('')
+    setDescription('')
+    setSuccess('Job posted! It now appears on the Jobs page.')
+    setTimeout(() => setSuccess(''), 2500)
   }
 
   const handleEditClick = (job) => {
