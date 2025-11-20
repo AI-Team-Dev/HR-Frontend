@@ -24,7 +24,7 @@ export default function ApplicantProfile() {
 		resumeFile: null, // Store the actual file object
 		resumeFileName: applicantProfile.resumeFileName || '',
 		education: applicantProfile.education.length ? applicantProfile.education : [{ degree: '', institution: '', cgpa: '', startMonth: '', endMonth: '' }],
-		certifications: applicantProfile.certifications && applicantProfile.certifications.length ? applicantProfile.certifications : [{ name: '', issuer: '', endMonth: '' }],
+		certifications: applicantProfile.certifications && applicantProfile.certifications.length ? applicantProfile.certifications : [{ name: '', issuer: '', validTill: '', validationUrl: '', status: '' }],
 		experiences: applicantProfile.experiences.length ? applicantProfile.experiences : [{ company: '', role: '', startMonth: '', endMonth: '', isCurrent: false }],
 	})
 	const [saved, setSaved] = useState('')
@@ -37,9 +37,35 @@ export default function ApplicantProfile() {
 		if (!f.phone?.trim()) e.phone = 'Phone is required'
 		if (!f.currentLocation?.trim()) e.currentLocation = 'Current location is required'
 		if (!f.preferredLocation?.trim()) e.preferredLocation = 'Preferred location is required'
-		if (!f.resumeFile && !f.resumeFileName) e.resumeFileName = 'Resume is required'
+		if (!f.resumeFileName) e.resumeFileName = 'Resume is required'
 		const hasEducation = Array.isArray(f.education) && f.education.some(ed => ed.degree?.trim() && ed.institution?.trim())
-		if (!hasEducation) e.education = 'At least one education entry with Degree and Institution is required'
+		if (!hasEducation) {
+			e.education = 'At least one education entry with Degree and Institution is required'
+		} else {
+			// Check for 10th standard
+			const has10th = f.education.some(ed => 
+				ed.degree?.toLowerCase().includes('10') || 
+				ed.degree?.toLowerCase().includes('tenth') || 
+				ed.degree?.toLowerCase().includes('ssc') ||
+				ed.degree?.toLowerCase().includes('secondary')
+			)
+			// Check for 12th/Diploma
+			const has12thOrDiploma = f.education.some(ed => 
+				ed.degree?.toLowerCase().includes('12') || 
+				ed.degree?.toLowerCase().includes('twelfth') || 
+				ed.degree?.toLowerCase().includes('hsc') ||
+				ed.degree?.toLowerCase().includes('senior secondary') ||
+				ed.degree?.toLowerCase().includes('diploma') ||
+				ed.degree?.toLowerCase().includes('intermediate')
+			)
+			
+			if (!has10th) {
+				e.education = 'Please add your 10th standard education details'
+			} else if (!has12thOrDiploma) {
+				e.education = 'Please add your 12th standard or Diploma education details'
+			}
+		}
+		
 		if (!f.experienceLevel) e.experienceLevel = 'Select fresher or experienced'
 		if (f.experienceLevel === 'experienced') {
 			if (!f.servingNotice) e.servingNotice = 'Please select an option'
@@ -68,7 +94,7 @@ export default function ApplicantProfile() {
 			listKey === 'education'
 				? { degree: '', institution: '', cgpa: '', startMonth: '', endMonth: '' }
 			: listKey === 'certifications'
-				? { name: '', issuer: '', endMonth: '' }
+				? { name: '', issuer: '', validTill: '', validationUrl: '', status: '' }
 				: { company: '', role: '', startMonth: '', endMonth: '', isCurrent: false },
 		],
 	}))
@@ -276,26 +302,30 @@ export default function ApplicantProfile() {
 												>
 													<option value="" className="text-zinc-900">Select</option>
 													<option>Immediate</option>
-													<option>15 days</option>
-													<option>30 days</option>
-													<option>45 days</option>
-													<option>60 days</option>
-													<option>90 days</option>
-													<option>More than 90 days</option>
+													<option>&lt; 30 days</option>
+													<option>&lt; 45 days</option>
+													<option>&lt; 60 days</option>
+													<option>&lt; 90 days</option>
+													<option>Serving Notice Period</option>
 												</select>
 												{errors.noticePeriod && <div className="mt-1 text-xs text-red-400">{errors.noticePeriod}</div>}
 											</div>
 
 											{(form.servingNotice === 'yes' || form.noticePeriod === 'Immediate') && (
 												<div>
-													<label className="block text-sm font-medium text-zinc-300">Last working day <span className="text-red-400">*</span></label>
+													<label className="block text-sm font-medium text-zinc-300">
+														{form.noticePeriod === 'Immediate' ? 'Joining date' : 'Last working day'} <span className="text-red-400">*</span>
+													</label>
 													<input
 														type="date"
 														className="mt-1 w-full bg-transparent border-0 border-b border-zinc-700 py-2.5 text-gray-100 focus:outline-none focus:border-white"
 														value={form.lastWorkingDay}
 														onChange={(e) => updateField('lastWorkingDay', e.target.value)}
-
+														max={form.noticePeriod === 'Immediate' ? new Date().toISOString().split('T')[0] : undefined}
 													/>
+													{form.noticePeriod === 'Immediate' && (
+														<div className="mt-1 text-xs text-zinc-400">As an immediate joiner, you cannot select a future date</div>
+													)}
 													{errors.lastWorkingDay && <div className="mt-1 text-xs text-red-400">{errors.lastWorkingDay}</div>}
 												</div>
 											)}
@@ -333,6 +363,7 @@ export default function ApplicantProfile() {
 									<label className="block text-sm font-medium text-zinc-300">Education <span className="text-red-400">*</span></label>
 									<button type="button" className="text-sm text-white bg-zinc-800 hover:bg-zinc-700 rounded-md px-3 py-1" onClick={() => { addListItem('education'); if (errors.education) setErrors((er)=>({ ...er, education: undefined })) }}>Add</button>
 								</div>
+								<p className="mt-1 text-xs text-zinc-400">Please include all your education starting from 10th standard, 12th/Diploma, and higher degrees</p>
 								{errors.education && <div className="mt-2 text-xs text-red-400">{errors.education}</div>}
 								<div className="mt-3 space-y-4">
 									{form.education.map((ed, i) => (
@@ -361,12 +392,55 @@ export default function ApplicantProfile() {
 								<div className="mt-3 space-y-4">
 									{form.certifications.map((ce, i) => (
 										<div key={i} className="rounded-lg border border-zinc-800 p-3 bg-zinc-900/30">
-											<div className="grid sm:grid-cols-3 gap-3">
-												<input placeholder="Certification" className="bg-transparent border-0 border-b border-zinc-700 py-2.5 text-gray-100 focus:border-white" value={ce.name || ''} onChange={(e) => updateListItem('certifications', i, 'name', e.target.value)} />
+											<div className="grid sm:grid-cols-2 gap-3">
+												<input placeholder="Certification Name" className="bg-transparent border-0 border-b border-zinc-700 py-2.5 text-gray-100 focus:border-white" value={ce.name || ''} onChange={(e) => updateListItem('certifications', i, 'name', e.target.value)} />
 												<input placeholder="Issuer" className="bg-transparent border-0 border-b border-zinc-700 py-2.5 text-gray-100 focus:border-white" value={ce.issuer || ''} onChange={(e) => updateListItem('certifications', i, 'issuer', e.target.value)} />
-												<MonthYearPicker placeholder="End month" value={ce.endMonth || ''} onChange={(v) => updateListItem('certifications', i, 'endMonth', v)} />
 											</div>
-											<div className="mt-2 flex justify-end">
+											<div className="grid sm:grid-cols-3 gap-3 mt-3">
+												<div>
+													<input 
+														type="date" 
+														placeholder="Valid Till" 
+														className={`bg-transparent border-0 border-b py-2.5 text-gray-100 focus:border-white ${
+															ce.validTill && new Date(ce.validTill) < new Date() && ce.status !== 'pursuing' ? 'border-red-500' : 'border-zinc-700'
+														}`} 
+														value={ce.validTill || ''} 
+														onChange={(e) => {
+															const date = e.target.value;
+															if (date && new Date(date) < new Date() && ce.status !== 'pursuing') {
+																alert('Cannot save an expired certification. Please select a future date or mark as Pursuing.');
+																return;
+															}
+															updateListItem('certifications', i, 'validTill', date);
+														}}
+														disabled={ce.status === 'pursuing'}
+													/>
+													{ce.validTill && new Date(ce.validTill) < new Date() && ce.status !== 'pursuing' && (
+														<div className="text-xs text-red-400 mt-1">Expired certification</div>
+													)}
+													{ce.status === 'pursuing' && (
+														<div className="text-xs text-zinc-400 mt-1">Valid Till is optional for pursuing</div>
+													)}
+												</div>
+												<select 
+													className="bg-transparent border-0 border-b border-zinc-700 py-2.5 text-gray-100 focus:border-white"
+													value={ce.status || ''}
+													onChange={(e) => updateListItem('certifications', i, 'status', e.target.value)}
+												>
+													<option value="" className="text-zinc-900">Status</option>
+													<option value="completed" className="text-zinc-900">Completed</option>
+													<option value="pursuing" className="text-zinc-900">Pursuing</option>
+												</select>
+												<input 
+													type="url" 
+													placeholder="Validation URL (optional)" 
+													className="bg-transparent border-0 border-b border-zinc-700 py-2.5 text-gray-100 focus:border-white" 
+													value={ce.validationUrl || ''} 
+													onChange={(e) => updateListItem('certifications', i, 'validationUrl', e.target.value)}
+												/>
+											</div>
+											<div className="mt-2 flex items-center justify-between">
+												<span className="text-xs text-zinc-500">Valid Till (required unless pursuing), Status, and Validation URL</span>
 												<button type="button" className="text-xs text-zinc-400 hover:text-zinc-200" onClick={() => removeListItem('certifications', i)}>Remove</button>
 											</div>
 										</div>

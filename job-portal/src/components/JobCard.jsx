@@ -11,7 +11,7 @@ const formatDisplayDate = (dateString) => {
   }
 }
 
-export default function JobCard({ job, onApply, isApplied = false, isSaved = false, onToggleSave }) {
+export default function JobCard({ job, onApply, isApplied = false, isSaved = false, onToggleSave, isAdmin = false }) {
   const isDisabled = job.enabled === false
   return (
     <div className={`group rounded-xl shadow-sm ring-1 p-5 transition transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg ${
@@ -64,15 +64,17 @@ export default function JobCard({ job, onApply, isApplied = false, isSaved = fal
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            disabled={isDisabled || isApplied}
-            onClick={onApply}
-            className={`text-sm font-medium px-4 py-2 rounded-lg transition ${
-              isDisabled || isApplied ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed' : 'bg-white hover:bg-gray-100 text-black'
-            }`}
-          >
-            {isApplied ? 'Applied' : 'Apply'}
-          </button>
+          {!isAdmin && (
+            <button
+              disabled={isDisabled || isApplied}
+              onClick={onApply}
+              className={`text-sm font-medium px-4 py-2 rounded-lg transition ${
+                isDisabled || isApplied ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed' : 'bg-white hover:bg-gray-100 text-black'
+              }`}
+            >
+              {isApplied ? 'Applied' : 'Apply'}
+            </button>
+          )}
           {onToggleSave && !isApplied && (
             <button
               type="button"
