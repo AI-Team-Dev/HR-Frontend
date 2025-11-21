@@ -5,7 +5,7 @@ import FilterBar from '../components/FilterBar.jsx'
 import JobCard from '../components/JobCard.jsx'
 
 export default function Jobs() {
-  const { jobs, applicantAuth, applicantProfile, jobsError, jobsLoading, fetchJobs, applicantSavedJobs, applicantApplications, toggleSaveJob, auth } = useApp()
+  const { jobs, applicantAuth, applicantProfile, jobsError, jobsLoading, fetchJobs, applicantApplications, auth } = useApp()
   const location = useLocation()
   const navigate = useNavigate()
   const params = new URLSearchParams(location.search)
@@ -72,7 +72,7 @@ export default function Jobs() {
                 key={job.id}
                 job={job}
                 isApplied={!!applicantApplications[job.id] || !!applicantApplications[String(job.id)]}
-                isSaved={!!applicantSavedJobs[job.id] || !!applicantSavedJobs[String(job.id)]}
+                isSaved={false}
                 isAdmin={auth.role === 'HR' || auth.role === 'admin'}
                 onApply={() => {
                   if (!applicantAuth.isLoggedIn) {
