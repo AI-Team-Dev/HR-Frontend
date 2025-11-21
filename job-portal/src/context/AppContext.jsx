@@ -434,6 +434,40 @@ export function AppProvider({ children }) {
 
   const getToken = () => token
 
+  // Fetch applications for a specific job (HR only)
+  const fetchApplicationsForJob = async (jobId) => {
+    if (!auth.isLoggedIn || auth.role !== 'HR') {
+      return { ok: false, message: 'Unauthorized' }
+    }
+    try {
+      const data = await apiRequest(`/api/jobs/${jobId}/applications`, {
+        method: 'GET',
+        token
+      })
+      return { ok: true, data: data.applications || data || [] }
+    } catch (err) {
+      console.error('Fetch applications error:', err)
+      return { ok: false, message: err?.message || 'Failed to fetch applications' }
+    }
+  }
+
+  // Fetch all applications grouped by job (HR only)
+  const fetchAllApplications = async () => {
+    if (!auth.isLoggedIn || auth.role !== 'HR') {
+      return { ok: false, message: 'Unauthorized' }
+    }
+    try {
+      const data = await apiRequest('/api/applications/all', {
+        method: 'GET',
+        token
+      })
+      return { ok: true, data: data.applications || data || [] }
+    } catch (err) {
+      console.error('Fetch all applications error:', err)
+      return { ok: false, message: err?.message || 'Failed to fetch applications' }
+    }
+  }
+
   // Fetch jobs from backend
   const fetchJobs = async () => {
     setJobsLoading(true)
@@ -587,7 +621,9 @@ export function AppProvider({ children }) {
     logout,
     user,
     fetchApplicantData,
-  }), [jobs, jobsLoading, jobsError, auth, authLoading, authError, applicantAuth, applicantProfile, applicantApplications, user])
+    fetchApplicationsForJob,
+    fetchAllApplications,
+  }), [jobs, jobsLoading, jobsError, auth, authLoading, authError, applicantAuth, applicantProfile, applicantApplications, user, token])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
