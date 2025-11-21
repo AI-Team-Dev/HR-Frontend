@@ -5,7 +5,7 @@ import FilterBar from '../components/FilterBar.jsx'
 import JobCard from '../components/JobCard.jsx'
 
 export default function Jobs() {
-  const { jobs, applicantAuth, applicantProfile, jobsError, jobsLoading, fetchJobs, applicantApplications, auth } = useApp()
+  const { jobs, applicantAuth, applicantProfile, jobsError, jobsLoading, fetchJobs, applicantApplications, applicantSavedJobs, toggleSaveJob, applyToJobAsApplicant, auth } = useApp()
   const location = useLocation()
   const navigate = useNavigate()
   const params = new URLSearchParams(location.search)
@@ -72,19 +72,34 @@ export default function Jobs() {
                 key={job.id}
                 job={job}
                 isApplied={!!applicantApplications[job.id] || !!applicantApplications[String(job.id)]}
-                isSaved={false}
+                isSaved={!!applicantSavedJobs[job.id] || !!applicantSavedJobs[String(job.id)]}
                 isAdmin={auth.role === 'HR' || auth.role === 'admin'}
-                onApply={() => {
+                onApply={async () => {
                   if (!applicantAuth.isLoggedIn) {
                     const qs = new URLSearchParams({ redirect: window.location.pathname + window.location.search, applyFor: job.id }).toString()
                     navigate(`/login/applicant?${qs}`)
                     return
                   }
-                  // Enforce application via profile page
-                  const qs = new URLSearchParams({ redirect: window.location.pathname + window.location.search, applyFor: job.id }).toString()
-                  navigate(`/profile/applicant?${qs}`)
+                  // If profile is completed, apply directly
+                  if (applicantProfile.completed) {
+                    const result = await applyToJobAsApplicant(job.id)
+                    // If successfully applied and job was saved, unsave it
+                    if (result.ok && (applicantSavedJobs[job.id] || applicantSavedJobs[String(job.id)])) {
+                      toggleSaveJob(job.id)
+                    }
+                  } else {
+                    // Redirect to profile page to complete
+                    const qs = new URLSearchParams({ redirect: window.location.pathname + window.location.search, applyFor: job.id }).toString()
+                    navigate(`/profile/applicant?${qs}`)
+                  }
                 }}
-                onToggleSave={() => {}}
+                onToggleSave={() => {
+                  if (!applicantAuth.isLoggedIn) {
+                    navigate('/login/applicant')
+                    return
+                  }
+                  toggleSaveJob(job.id)
+                }}
               />
             ))
           )}
