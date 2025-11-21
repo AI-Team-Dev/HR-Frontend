@@ -1,12 +1,14 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext.jsx'
+import { useToast } from '../components/Toast.jsx'
 import MonthYearPicker from '../components/MonthYearPicker.jsx'
 
 export default function ApplicantProfile() {
 	const { applicantProfile, saveApplicantProfile, markApplicantProfileCompleted, applyToJobAsApplicant, fetchApplicantData } = useApp()
 	const navigate = useNavigate()
 	const location = useLocation()
+	const toast = useToast()
   const firstErrorRef = useRef(null)
 
 	const [form, setForm] = useState({
@@ -72,8 +74,12 @@ export default function ApplicantProfile() {
 		if (f.experienceLevel === 'experienced') {
 			if (!f.servingNotice) e.servingNotice = 'Please select an option'
 			if (!f.noticePeriod) e.noticePeriod = 'Notice period is required'
-			// Require last working day if serving notice OR notice period is Immediate
-			if ((f.servingNotice === 'yes' || f.noticePeriod === 'Immediate') && !f.lastWorkingDay) e.lastWorkingDay = 'Last working day is required'
+			// Require last working day ONLY if serving notice is 'yes' OR notice period is 'Immediate'
+			if (f.servingNotice === 'yes' && !f.lastWorkingDay) {
+				e.lastWorkingDay = 'Last working day is required when serving notice'
+			} else if (f.noticePeriod === 'Immediate' && !f.lastWorkingDay) {
+				e.lastWorkingDay = 'Joining date is required for immediate joiners'
+			}
 		}
 		return e
 	}
@@ -102,13 +108,18 @@ export default function ApplicantProfile() {
 	}))
 	const removeListItem = (listKey, idx) => setForm((f) => ({ ...f, [listKey]: f[listKey].filter((_, i) => i !== idx) }))
 
-	const onSave = (e) => {
+	const onSave = async (e) => {
 		e.preventDefault()
 		console.log('DEBUG: onSave - form.resumeFile:', form.resumeFile)
 		console.log('DEBUG: onSave - form keys:', Object.keys(form))
-		saveApplicantProfile(form)
-		setSaved('Profile saved')
-		setTimeout(() => setSaved(''), 1200)
+		const result = await saveApplicantProfile(form)
+		if (result.ok) {
+			setSaved('Profile saved')
+			toast.push('Profile saved successfully! You can come back and complete it later.', { type: 'success', duration: 5000 })
+			setTimeout(() => setSaved(''), 3000)
+		} else {
+			toast.push('Failed to save profile. Please try again.', { type: 'error', duration: 4000 })
+		}
 	}
 
 	const onComplete = async (e) => {
@@ -268,10 +279,13 @@ export default function ApplicantProfile() {
 															type="radio"
 															name="servingNotice"
 															value="yes"
-															onChange={(e) => setForm((prev) => ({
-																...prev,
-																servingNotice: e.target.value,
-															}))}
+															onChange={(e) => {
+																setForm((prev) => ({
+																	...prev,
+																	servingNotice: e.target.value,
+																}))
+																if (errors.servingNotice) setErrors((er)=>({ ...er, servingNotice: undefined }))
+															}}
 															className="accent-white"
 															checked={form.servingNotice === 'yes'}
 														/>
@@ -282,10 +296,13 @@ export default function ApplicantProfile() {
 															type="radio"
 															name="servingNotice"
 															value="no"
-															onChange={(e) => setForm((prev) => ({
-																...prev,
-																servingNotice: e.target.value,
-															}))}
+															onChange={(e) => {
+																setForm((prev) => ({
+																	...prev,
+																	servingNotice: e.target.value,
+																}))
+																if (errors.servingNotice) setErrors((er)=>({ ...er, servingNotice: undefined }))
+															}}
 															className="accent-white"
 															checked={form.servingNotice === 'no'}
 														/>
@@ -297,10 +314,12 @@ export default function ApplicantProfile() {
 											<div>
 												<label className="block text-sm font-medium text-zinc-300">What is your notice period? <span className="text-red-400">*</span></label>
 												<select
-													className="mt-1 w-full border-0 border-b border-zinc-700 bg-zinc-900/80 py-2.5 text-zinc-100 focus:outline-none focus:border-white focus:bg-zinc-900"
+													className={`mt-1 w-full border-0 border-b bg-zinc-900/80 py-2.5 text-zinc-100 focus:outline-none focus:border-white focus:bg-zinc-900 ${errors.noticePeriod ? 'border-red-500' : 'border-zinc-700'}`}
 													value={form.noticePeriod}
-													onChange={(e) => updateField('noticePeriod', e.target.value)}
-
+													onChange={(e) => {
+														updateField('noticePeriod', e.target.value)
+														if (errors.noticePeriod) setErrors((er)=>({ ...er, noticePeriod: undefined }))
+													}}
 												>
 													<option value="" className="text-zinc-900">Select</option>
 													<option>Immediate</option>
@@ -320,12 +339,15 @@ export default function ApplicantProfile() {
 													</label>
 													<input
 														type="date"
-														className="mt-1 w-full bg-transparent border-0 border-b border-zinc-700 py-2.5 text-gray-100 focus:outline-none focus:border-white"
+														className={`mt-1 w-full bg-transparent border-0 border-b py-2.5 text-gray-100 focus:outline-none ${errors.lastWorkingDay ? 'border-red-500 focus:border-red-400' : 'border-zinc-700 focus:border-white'}`}
 														value={form.lastWorkingDay}
-														onChange={(e) => updateField('lastWorkingDay', e.target.value)}
+														onChange={(e) => { 
+															updateField('lastWorkingDay', e.target.value)
+															if (errors.lastWorkingDay) setErrors((er)=>({ ...er, lastWorkingDay: undefined }))
+														}}
 														max={form.noticePeriod === 'Immediate' ? new Date().toISOString().split('T')[0] : undefined}
 													/>
-													{form.noticePeriod === 'Immediate' && (
+													{form.noticePeriod === 'Immediate' && !errors.lastWorkingDay && (
 														<div className="mt-1 text-xs text-zinc-400">As an immediate joiner, you cannot select a future date</div>
 													)}
 													{errors.lastWorkingDay && <div className="mt-1 text-xs text-red-400">{errors.lastWorkingDay}</div>}
