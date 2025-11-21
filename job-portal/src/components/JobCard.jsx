@@ -75,7 +75,7 @@ export default function JobCard({ job, onApply, isApplied = false, isSaved = fal
               {isApplied ? 'Applied' : 'Apply'}
             </button>
           )}
-          {onToggleSave && !isApplied && (
+          {!isAdmin && onToggleSave && !isApplied && (
             <button
               type="button"
               onClick={onToggleSave}
@@ -84,7 +84,7 @@ export default function JobCard({ job, onApply, isApplied = false, isSaved = fal
               {isSaved ? 'Saved' : 'Save'}
             </button>
           )}
-          {onToggleSave && isApplied && (
+          {!isAdmin && onToggleSave && isApplied && (
             <button
               type="button"
               disabled

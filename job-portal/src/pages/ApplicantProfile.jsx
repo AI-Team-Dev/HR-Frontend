@@ -5,7 +5,7 @@ import { useToast } from '../components/Toast.jsx'
 import MonthYearPicker from '../components/MonthYearPicker.jsx'
 
 export default function ApplicantProfile() {
-	const { applicantProfile, saveApplicantProfile, markApplicantProfileCompleted, applyToJobAsApplicant, fetchApplicantData } = useApp()
+	const { applicantProfile, saveApplicantProfile, markApplicantProfileCompleted, applyToJobAsApplicant, fetchApplicantData, applicantSavedJobs, toggleSaveJob } = useApp()
 	const navigate = useNavigate()
 	const location = useLocation()
 	const toast = useToast()
@@ -158,6 +158,10 @@ export default function ApplicantProfile() {
 		if (applyForJobId) {
 			const applyResult = await applyToJobAsApplicant(applyForJobId)
 			if (applyResult.ok) {
+				// If job was saved, unsave it after successful application
+				if (applicantSavedJobs[applyForJobId] || applicantSavedJobs[String(applyForJobId)]) {
+					toggleSaveJob(applyForJobId)
+				}
 				// Refresh applications data
 				if (fetchApplicantData) {
 					await fetchApplicantData()
