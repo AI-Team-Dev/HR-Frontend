@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
   applicantAuth: 'applicantAuthState',
   applicantProfile: 'applicantProfileState',
   applicantApplications: 'applicantApplicationsState',
+  applicantSavedJobs: 'applicantSavedJobsState',
   jobs: 'jobsState',
   user: 'authUser',
 }
@@ -76,6 +77,7 @@ export function AppProvider({ children }) {
   const [authError, setAuthError] = useState('')
   const [applicantProfile, setApplicantProfile] = useState(() => readJson(STORAGE_KEYS.applicantProfile, defaultApplicantProfile))
   const [applicantApplications, setApplicantApplications] = useState(() => readJson(STORAGE_KEYS.applicantApplications, {})) // jobId -> true
+  const [applicantSavedJobs, setApplicantSavedJobs] = useState(() => readJson(STORAGE_KEYS.applicantSavedJobs, {})) // jobId -> true
 
   useEffect(() => {
     // Wire global 401 -> logout handling
@@ -118,6 +120,11 @@ export function AppProvider({ children }) {
     if (typeof window === 'undefined') return
     writeJson(STORAGE_KEYS.applicantApplications, applicantApplications)
   }, [applicantApplications])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    writeJson(STORAGE_KEYS.applicantSavedJobs, applicantSavedJobs)
+  }, [applicantSavedJobs])
 
   // Do not persist jobs; source of truth is backend
 
@@ -415,11 +422,29 @@ export function AppProvider({ children }) {
   }
 
 
+  const toggleSaveJob = (jobId) => {
+    setApplicantSavedJobs((prev) => {
+      const next = { ...prev }
+      const key = String(jobId)
+      if (next[key] || next[jobId]) {
+        // Unsave
+        delete next[key]
+        delete next[jobId]
+      } else {
+        // Save
+        next[jobId] = true
+        next[key] = true
+      }
+      return next
+    })
+  }
+
   const logout = () => {
     setAuth(defaultAuth)
     setApplicantAuth(defaultApplicantAuth)
     setApplicantProfile(defaultApplicantProfile)
     setApplicantApplications({})
+    setApplicantSavedJobs({})
     setToken('')
     tokenService.clear()
     setUser(null)
@@ -428,6 +453,7 @@ export function AppProvider({ children }) {
       window.localStorage.removeItem(STORAGE_KEYS.applicantAuth)
       window.localStorage.removeItem(STORAGE_KEYS.applicantProfile)
       window.localStorage.removeItem(STORAGE_KEYS.applicantApplications)
+      window.localStorage.removeItem(STORAGE_KEYS.applicantSavedJobs)
       window.localStorage.removeItem(STORAGE_KEYS.user)
     }
   }
@@ -611,19 +637,21 @@ export function AppProvider({ children }) {
     applicantAuth,
     applicantProfile,
     applicantApplications,
+    applicantSavedJobs,
     loginApplicant,
     signupApplicant,
     signupHR,
     saveApplicantProfile,
     markApplicantProfileCompleted,
     applyToJobAsApplicant,
+    toggleSaveJob,
     getToken,
     logout,
     user,
     fetchApplicantData,
     fetchApplicationsForJob,
     fetchAllApplications,
-  }), [jobs, jobsLoading, jobsError, auth, authLoading, authError, applicantAuth, applicantProfile, applicantApplications, user, token])
+  }), [jobs, jobsLoading, jobsError, auth, authLoading, authError, applicantAuth, applicantProfile, applicantApplications, applicantSavedJobs, user, token])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
