@@ -283,6 +283,25 @@ export function AppProvider({ children }) {
     }
   }
 
+  const verifyApplicantOTP = async ({ email, otp }) => {
+    setAuthError('')
+    setAuthLoading(true)
+    try {
+      const data = await apiRequest('/api/candidate/verify-otp', {
+        method: 'POST',
+        body: { email, otp },
+      })
+      return { ok: true, data }
+    } catch (err) {
+      console.error('Verify applicant OTP error:', err)
+      const errorMessage = err?.message || err?.error || 'OTP verification failed'
+      setAuthError(errorMessage)
+      return { ok: false, message: errorMessage }
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
   const signupHR = async ({ fullName, email, password, company }) => {
     setAuthError('')
     setAuthLoading(true)
@@ -295,6 +314,68 @@ export function AppProvider({ children }) {
     } catch (err) {
       setAuthError(err?.message || 'Signup failed')
       return { ok: false, message: err?.message || 'Signup failed' }
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const verifyHROTP = async ({ email, otp }) => {
+    setAuthError('')
+    setAuthLoading(true)
+    try {
+      const data = await apiRequest('/api/verify-otp', {
+        method: 'POST',
+        body: { email, otp },
+      })
+      // If verification successful and token provided, store auth
+      if (data && data.token && data.user) {
+        setToken(data.token)
+        tokenService.setToken(data.token)
+        setUser(data.user)
+        const nextAuth = { isLoggedIn: true, role: 'HR', email: data.user.email || email }
+        setAuth(nextAuth)
+        writeJson(STORAGE_KEYS.auth, nextAuth)
+      }
+      return { ok: true, data }
+    } catch (err) {
+      setAuthError(err?.message || 'OTP verification failed')
+      return { ok: false, message: err?.message || 'OTP verification failed' }
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const resendApplicantOTP = async ({ email, phone }) => {
+    setAuthError('')
+    setAuthLoading(true)
+    try {
+      const data = await apiRequest('/api/candidate/resend-otp', {
+        method: 'POST',
+        body: { email, phone },
+      })
+      return { ok: true, data }
+    } catch (err) {
+      const errorMessage = err?.message || err?.error || 'Failed to resend OTP'
+      setAuthError(errorMessage)
+      return { ok: false, message: errorMessage }
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const resendHROTP = async ({ email }) => {
+    setAuthError('')
+    setAuthLoading(true)
+    try {
+      const data = await apiRequest('/api/resend-otp', {
+        method: 'POST',
+        body: { email },
+      })
+      return { ok: true, data }
+    } catch (err) {
+      const errorMessage = err?.message || err?.error || 'Failed to resend OTP'
+      setAuthError(errorMessage)
+      return { ok: false, message: errorMessage }
     } finally {
       setAuthLoading(false)
     }
@@ -640,7 +721,11 @@ export function AppProvider({ children }) {
     applicantSavedJobs,
     loginApplicant,
     signupApplicant,
+    verifyApplicantOTP,
+    resendApplicantOTP,
     signupHR,
+    verifyHROTP,
+    resendHROTP,
     saveApplicantProfile,
     markApplicantProfileCompleted,
     applyToJobAsApplicant,

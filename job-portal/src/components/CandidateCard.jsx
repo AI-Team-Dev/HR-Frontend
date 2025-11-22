@@ -23,7 +23,9 @@ const formatDate = (dateString) => {
 }
 
 export default function CandidateCard({ candidate, onViewDetails }) {
-  const score = candidate.matchScore || candidate.score || 0
+  // Ensure score is a number and round it for display
+  const rawScore = candidate.matchScore || candidate.score || 0
+  const score = Math.round(Number(rawScore))
   const scoreInfo = getScoreInfo(score)
   
   return (
